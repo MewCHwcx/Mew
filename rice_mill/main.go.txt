@@ -1,0 +1,138 @@
+package main
+
+import (
+	// "encoding/json"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
+)
+
+var db *sql.DB
+var err error
+
+type Warehouse struct {
+	Id      string `json="id"`
+	Details string `json="details"`
+}
+
+type Users struct {
+	User_id   int   `json="user_id"`
+	User_name string `json="user_name"`
+	Password  string `json="password"`
+	Name      string `json="name"`
+	Level     int    `json="level"` //ENUM('1', '2', '3')
+	Address   string `json="address"`
+}
+
+type Rice_transfer_record struct {
+	Id             int    `json="id"`
+	Upd_date       string  `json="upd_date"` //DATE
+	From_warehouse string  `json="from_warehouse"`
+	To_warehouse   string  `json="to_warehouse"`
+	Amount         int `json="amount"` //DOUBLE
+	Rice_id_from   string  `json="rice_id_from"`
+	Rice_id_to     string  `json="rice_id_to"`
+}
+
+type Rice_sale struct {
+	Id           int     `json="id"`
+	Sale_id      string  `json="sale_id"`
+	Warehouse_id string  `json="warehouse"`
+	Rice_id      string  `json="rice_id"`
+	Amount       int `json="amount"`
+	Upd_date     string  `json="upd_date"`
+}
+
+type Rice_packing_daily struct {
+	Id           int    `json="id"`
+	Pack_id      string  `json="pack_id"`
+	Warehouse_id string  `json="warehouse_id"`
+	Rice_id      string  `json="rice_id"`
+	Amount       int `json="amount"`
+	Upd_date     string  `json="upd_date"`
+	Activity     string  `json="activity"`
+}
+
+type Rice_info struct {
+	Rice_info_id int   `json="rice_info_id"`
+	Rice_id      string `json="rice_id"`
+	Rice_name    string `json="rice_name"`
+	Rice_unit    string `json="rice_unit"`
+	Rice_on_hand string `json="rice_on_hand"`
+	Upd_date     string `json="upd_date"`
+	Shortname    string `json="shortname"`
+}
+
+type Rice_analyze struct {
+	Id             int     `json="id"`
+	Rice_id        string  `json="rice_id"`
+	Image_location string  `json="image_location"`
+	Weight         int `json="weight"`
+	Upd_date       string  `json="upd_date"`
+}
+
+type Rice_result struct {
+	Id             int     `json="id"`
+	Rice_id        string  `json="rice_id"`
+	Image_location string  `json="image_location"`
+	Weight         int `json="weight"`
+	Well           int     `json="well"`
+	Lose           int     `json="lose"`
+	Upd_date       string  `json="upd_date"`
+}
+
+type TransferRice struct {
+	Id                  int
+	Upd_date            string
+	Amount              int
+	Rice_name           string
+	From_warehouse_name string
+	To_warehouse_name   string
+}
+
+func homePage(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Welcome to the HomePage!")
+}
+func getTransferRice(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var transferRice []TransferRice
+	sql := "select rice_info_id as ID, rice_id as RiceID from rice_info order by rice_info_id desc limit 1"
+	sql := "SELECT rice_transfer_record.id AS Id, rice_transfer_record.upd_date AS Upd_date , rice_transfer_record.amount AS Amount ,  rice_info.rice_name as Rice_name , (SELECT warehouse.details FROM warehouse where warehouse.id = rice_transfer_record.from_warehouse) as From_warehouse_name, (SELECT warehouse.details FROM warehouse where warehouse.id = rice_transfer_record.to_warehouse) as To_warehouse_name FROM rice_transfer_record INNER JOIN rice_info ON rice_transfer_record.rice_id_from = rice_info.rice_id;"
+	fmt.Println(sql)
+	result, err := db.Query(sql)
+	if err != nil {
+		panic(err.Error()) 
+	}
+	defer result.Close()
+
+	for result.Next() {
+		var transferRices TransferRice
+		err = result.Scan(&transferRices.Id, &transferRices.Upd_date, &transferRices.Amount, &transferRices.Rice_name, &transferRices.From_warehouse_name, &transferRices.To_warehouse_name)
+			panic(err.Error()) 
+		}
+	
+		json.NewEncoder(w).Encode(transferRice) // (1)
+}
+
+func handleRequest() {
+	router := mux.NewRouter()
+	router.HandleFunc("/", homePage).Methods("GET")
+	router.HandleFunc("/getTransferRice", getTransferRice).Methods("GET")
+	http.ListenAndServe(":8000", router)
+}
+
+func initMysql() {
+	db, err = sql.Open("mysql", "root:123456@tcp(127.0.0.1:3306)/rice_mill_process")
+	if err != nil {
+		panic(err.Error())
+	}
+
+}
+func main() {
+	initMysql()
+	handleRequest()
+}
