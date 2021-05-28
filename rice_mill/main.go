@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/handlers"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -451,9 +452,9 @@ func NewRouter() *httprouter.Router {
 const (
 	DBDriver   = "mysql"
 	DBName     = "rice_mill_process"
-	DBUser     = "root"
-	DBPassword = "123456"
-	DBURL      = DBUser + ":" + DBPassword + "@tcp(127.0.0.1:3306)/" + DBName
+	DBUser     = "iots"
+	DBPassword = "1q2w3e4r@iots"
+	DBURL      = DBUser + ":" + DBPassword + "@tcp(iotdb.kku.ac.th:8443)/" + DBName
 )
 
 func GetDB() (*sql.DB, error) {
@@ -471,7 +472,11 @@ func GetDB() (*sql.DB, error) {
 func main() {
 	log.Println("Server is up on 9000 port")
 	router := NewRouter()
-	log.Fatalln(http.ListenAndServe(":9000", router))
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With"})
+	originsOk := handlers.AllowedOrigins([]string{"*"})
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
+
+	log.Fatalln(http.ListenAndServe(":9000", handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
 // func GetAllTransfer(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
